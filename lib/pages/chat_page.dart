@@ -128,12 +128,15 @@ class _ChatPageState extends State<ChatPage> {
                   message: _message,
                   isOwnMessage: _isOwnMessage,
                   sender: this
-                      .widget
-                      .chat
-                        .members
-                      .where((_m) => _m.uid == _message.senderID)
-                      .first,
-                ),
+                    .widget
+                    .chat
+                    .members
+                    .firstWhere(
+                    (_m) => _m.uid == _message.senderID,
+                orElse: () => _auth.user, // Fallback to current user if no match
+              ),
+
+              ),
               );
             },
           ),

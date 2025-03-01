@@ -37,13 +37,14 @@ class ChatPageProvider extends ChangeNotifier {
 
   String? _message;
 
-  String get message {
-    return message;
+  // With this:
+  String? get message => _message;
+  set message(String? value) {
+    _message = value;
+    notifyListeners(); // Ensures UI updates
   }
 
-  void set message(String _value) {
-    _message = _value;
-  }
+
 
   ChatPageProvider(this._chatId, this._auth, this._messagesListViewController) {
     _db = GetIt.instance.get<DatabaseService>();
