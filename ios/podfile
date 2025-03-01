@@ -1,0 +1,13 @@
+platform :ios, '10.0'  # Update this to your desired deployment target
+
+# Flutter Podfile configuration
+flutter_application_path = '../..'
+load File.join(flutter_application_path, 'packages', 'flutter_tools', 'bin', 'podhelper.rb')
+
+target 'Runner' do
+  use_frameworks!
+  use_modular_headers!
+
+  # Add Flutter pod dependencies
+  install_flutter_dependencies
+end
