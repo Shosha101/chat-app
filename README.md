@@ -1,16 +1,35 @@
-# chatify
+# Chatify — Realtime Chat App
 
-chatify is an application using firebase
+A realtime chat application built with **Flutter + Firebase**.
+
+## Features
+
+- 🔐 **Authentication** — register & login with Firebase Auth
+- 💬 **Realtime messaging** — chats stored and synced live via Cloud Firestore
+- 🖼️ **Media messages** — send images via Firebase Storage (file picker + upload)
+- 👥 **User discovery** — browse users and start conversations
+- 🕓 Relative timestamps (`timeago`), keyboard-visibility-aware UI, splash screen
+
+## Architecture
+
+**Provider**-based MVVM with a dedicated services layer:
+
+```
+lib/
+├── models/       # chat, message, user
+├── pages/        # splash, login, register, home, chats, chat, users
+├── providers/    # authentication, chats list, single chat, users
+├── services/     # database (Firestore), cloud storage, media, navigation
+└── widgets/      # message bubbles, list tiles, inputs, top bar
+```
+
+- **get_it** for service location
+- Firebase config via `flutter_dotenv` (secrets kept out of source)
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```bash
+flutter pub get
+# add your own Firebase project (google-services.json / firebase_options.dart)
+flutter run
+```
