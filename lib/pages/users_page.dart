@@ -1,4 +1,5 @@
 //Packages
+import 'package:easy_localization/easy_localization.dart' hide TextDirection;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -7,6 +8,7 @@ import '../providers/authentication_provider.dart';
 import '../providers/users_page_provider.dart';
 
 //Widgets
+import '../widgets/app_widgets.dart';
 import '../widgets/custom_input_fields.dart';
 import '../widgets/top_bar.dart';
 import '../widgets/custom_list_view_tiles.dart';
@@ -16,6 +18,8 @@ import '../widgets/rounded_button.dart';
 import '../models/chat_user.dart';
 
 class UsersPage extends StatefulWidget {
+  const UsersPage({super.key});
+
   @override
   State<StatefulWidget> createState() {
     return _UsersPageState();
@@ -23,9 +27,6 @@ class UsersPage extends StatefulWidget {
 }
 
 class _UsersPageState extends State<UsersPage> {
-  late double _deviceHeight;
-  late double _deviceWidth;
-
   late AuthenticationProvider _auth;
   late UsersPageProvider _pageProvider;
 
@@ -33,9 +34,13 @@ class _UsersPageState extends State<UsersPage> {
   TextEditingController();
 
   @override
+  void dispose() {
+    _searchFieldTextEditingController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    _deviceHeight = MediaQuery.of(context).size.height;
-    _deviceWidth = MediaQuery.of(context).size.width;
     _auth = Provider.of<AuthenticationProvider>(context);
     return MultiProvider(
       providers: [
@@ -49,43 +54,42 @@ class _UsersPageState extends State<UsersPage> {
 
   Widget _buildUI() {
     return Builder(
-      builder: (BuildContext _context) {
-        _pageProvider = _context.watch<UsersPageProvider>();
-        return Container(
-          padding: EdgeInsets.symmetric(
-              horizontal: _deviceWidth * 0.03, vertical: _deviceHeight * 0.02),
-          height: _deviceHeight * 0.98,
-          width: _deviceWidth * 0.97,
-          child: Column(
-            mainAxisSize: MainAxisSize.max,
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              TopBar(
-                'Users',
-                primaryAction: IconButton(
-                  icon: Icon(
-                    Icons.logout,
-                    color: Color.fromRGBO(0, 82, 218, 1.0),
+      builder: (BuildContext context) {
+        _pageProvider = context.watch<UsersPageProvider>();
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.max,
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(start: 10, top: 8),
+                  child: TopBar(
+                    context.tr('users'),
+                    primaryAction: const AccountActions(),
                   ),
-                  onPressed: () {
-                    _auth.logout();
-                  },
                 ),
-              ),
-              CustomTextField(
-                onEditingComplete: (_value) {
-                  _pageProvider.getUsers(name: _value);
-                  FocusScope.of(context).unfocus();
-                },
-                hintText: "Search...",
-                obscureText: false,
-                controller: _searchFieldTextEditingController,
-                icon: Icons.search,
-              ),
-              _usersList(),
-              _createChatButton(),
-            ],
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: CustomTextField(
+                    onEditingComplete: (value) {
+                      _pageProvider.getUsers(name: value);
+                      FocusScope.of(context).unfocus();
+                    },
+                    hintText: context.tr('search_hint'),
+                    obscureText: false,
+                    controller: _searchFieldTextEditingController,
+                    icon: Icons.search,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _usersList(),
+                _createChatButton(),
+              ],
+            ),
           ),
         );
       },
@@ -93,62 +97,82 @@ class _UsersPageState extends State<UsersPage> {
   }
 
   Widget _usersList() {
-    List<ChatUser>? _users = _pageProvider.users;
+    List<ChatUser>? users = _pageProvider.users;
     return Expanded(child: () {
-      if (_users != null) {
-        if (_users.length != 0) {
+      if (users != null) {
+        if (users.isNotEmpty) {
           return ListView.builder(
-            itemCount: _users.length,
-            itemBuilder: (BuildContext _context, int _index) {
+            padding: const EdgeInsets.only(bottom: 12),
+            itemCount: users.length,
+            itemBuilder: (BuildContext context, int index) {
               return CustomListViewTile(
-                height: _deviceHeight * 0.10,
-                title: _users[_index].name,
-                subtitle: "Last Active: ${_users[_index].lastDayActive()}",
-                imagePath: _users[_index].imageURL,
-                isActive: _users[_index].wasRecentlyActive(),
+                title: userName(context, users[index]),
+                subtitle: context.tr(
+                  'last_active',
+                  args: [timeAgo(context, users[index].lastActive)],
+                ),
+                imagePath: users[index].imageURL,
+                isActive: users[index].wasRecentlyActive(),
                 isSelected: _pageProvider.selectedUsers.contains(
-                  _users[_index],
+                  users[index],
                 ),
                 onTap: () {
                   _pageProvider.updateSelectedUsers(
-                    _users[_index],
+                    users[index],
                   );
                 },
               );
             },
           );
         } else {
-          return Center(
-            child: Text(
-              "No Users Found.",
-              style: TextStyle(
-                color: Colors.white,
-              ),
+          bool isSearching =
+              _searchFieldTextEditingController.text.trim().isNotEmpty;
+          return StateMessage(
+            icon: isSearching ? Icons.search_off : Icons.people_outline,
+            title: context.tr('users_empty_title'),
+            body: context.tr(
+              isSearching ? 'users_empty_search_body' : 'users_empty_body',
             ),
           );
         }
-      } else {
-        return Center(
-          child: CircularProgressIndicator(
-            color: Colors.white,
+      } else if (_pageProvider.hasError) {
+        return StateMessage(
+          icon: Icons.cloud_off_outlined,
+          title: context.tr('users_error'),
+          actionLabel: context.tr('retry'),
+          onAction: () => _pageProvider.getUsers(
+            name: _searchFieldTextEditingController.text,
           ),
         );
+      } else {
+        return const LoadingView();
       }
     }());
   }
 
   Widget _createChatButton() {
+    int selectedCount = _pageProvider.selectedUsers.length;
     return Visibility(
-      visible: _pageProvider.selectedUsers.isNotEmpty,
-      child: RoundedButton(
-        name: _pageProvider.selectedUsers.length == 1
-            ? "Chat With ${_pageProvider.selectedUsers.first.name}"
-            : "Create Group Chat",
-        height: _deviceHeight * 0.08,
-        width: _deviceWidth * 0.80,
-        onPressed: () {
-          _pageProvider.createChat();
-        },
+      visible: selectedCount > 0,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 4, 8, 12),
+        child: RoundedButton(
+          name: selectedCount == 1
+              ? context.tr(
+                  'chat_with',
+                  args: [userName(context, _pageProvider.selectedUsers.first)],
+                )
+              : context.tr('create_group_chat', args: ['$selectedCount']),
+          height: 54,
+          width: double.infinity,
+          isLoading: _pageProvider.isCreatingChat,
+          onPressed: () async {
+            bool isCreated = await _pageProvider.createChat();
+            if (!isCreated && mounted) {
+              showAppMessage(context, context.tr('create_chat_failed'));
+            }
+          },
+        ),
       ),
     );
   }

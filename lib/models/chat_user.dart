@@ -17,9 +17,10 @@ class ChatUser {
   factory ChatUser.fromJSON(Map<String, dynamic> _json) {
     return ChatUser(
       uid: _json["uid"] ?? "",
-      email: _json["email"] ?? "No Email",
-      name: _json["name"] ?? "No Name",
-      imageURL: _json["image"] ?? "No Image",
+      // Left empty when missing: the UI shows its own placeholders
+      email: _json["email"] ?? "",
+      name: _json["name"] ?? "",
+      imageURL: _json["image"] ?? "",
       lastActive: _json["last_active"] != null
           ? (_json["last_active"] as Timestamp).toDate()
           : DateTime.now().toUtc(),

@@ -21,9 +21,9 @@ class Chat {
   }) {
     _recepients = members.where((_i) => _i.uid != currentUserUid).toList();
 
+    // A chat with only the current user in it: show the user's own profile
     if (_recepients.isEmpty) {
-      print("Recepients list is empty! Adding current user.");
-      _recepients.add(members.firstWhere((m) => m.uid == currentUserUid));
+      _recepients.addAll(members.where((m) => m.uid == currentUserUid).take(1));
     }
   }
 
@@ -32,28 +32,12 @@ class Chat {
     return _recepients;
   }
 
-  String title() {
-    if (_recepients.isNotEmpty) {
-      return !group
-          ? _recepients.first.name
-          : _recepients.map((_user) => _user.name).join(", ");
-    } else {
-      return "You"; // Default title for self-chat
-    }
-  }
-
+  // Empty for a group chat: the UI draws a group avatar of its own
   String imageURL() {
-    if (_recepients.isNotEmpty) {
-      return !group
-          ? _recepients.first.imageURL // Get recipient's image
-          : "https://e7.pngegg.com/pngimages/380/670/png-clipart-group-chat-logo-blue-area-text-symbol-metroui-apps-live-messenger-alt-2-blue-text.png";
-    } else {
-      print("Recepients list is empty! Using current user's image.");
-      return members.firstWhere(
-              (m) => m.uid == currentUserUid,
-          orElse: () => members.first // Fallback to first member
-      ).imageURL;
+    if (group || _recepients.isEmpty) {
+      return "";
     }
+    return _recepients.first.imageURL;
   }
 
 

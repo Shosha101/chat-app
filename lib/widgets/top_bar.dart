@@ -1,45 +1,85 @@
 import 'package:flutter/material.dart';
 
-class TopBar extends StatelessWidget {
-  String _barTitle;
-  Widget? primaryAction;
-  Widget? secondryAction;
-  double? fontSize;
-  late double _deviceHeight;
-  late double _deviceWidth;
+//Widgets
+import '../widgets/app_widgets.dart';
 
-  TopBar(this._barTitle,
-      {this.primaryAction, this.secondryAction, this.fontSize=35});
+//Themes
+import '../themes/app_theme.dart';
+
+class TopBar extends StatelessWidget {
+  final String _barTitle;
+  // Smaller line under the title
+  final String? subtitle;
+  // Sits at the end of the bar
+  final Widget? primaryAction;
+  // Sits at the start of the bar, before the title
+  final Widget? secondryAction;
+  // Shown between the start action and the title
+  final Widget? avatar;
+  final double fontSize;
+
+  const TopBar(this._barTitle,
+      {super.key,
+      this.subtitle,
+      this.primaryAction,
+      this.secondryAction,
+      this.avatar,
+      this.fontSize = 26});
 
   @override
   Widget build(BuildContext context) {
-    _deviceHeight = MediaQuery.of(context).size.height;
-    _deviceWidth = MediaQuery.of(context).size.width;
     return _buildUI();
   }
 
   Widget _buildUI() {
-    return Container(
-      height: _deviceHeight * 0.10,
-      width: _deviceWidth,
+    return SizedBox(
+      height: 64,
       child: Row(
         mainAxisSize: MainAxisSize.max,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           if (secondryAction != null) secondryAction!,
-          _titleBar(),
-          if (primaryAction != null) primaryAction!,
+          if (avatar != null) ...[
+            avatar!,
+            const SizedBox(width: 12),
+          ],
+          Expanded(child: _titleBar()),
+          if (primaryAction != null) ...[
+            const SizedBox(width: 8),
+            primaryAction!,
+          ],
         ],
       ),
     );
   }
+
   Widget _titleBar() {
-    return Text(
-      _barTitle,
-      overflow: TextOverflow.ellipsis,
-      style: TextStyle(
-           fontSize: fontSize, fontWeight: FontWeight.w700),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ContentText(
+          _barTitle,
+          maxLines: 1,
+          style: TextStyle(
+            fontSize: fontSize,
+            fontWeight: FontWeight.w700,
+            height: 1.25,
+            color: AppColors.text,
+          ),
+        ),
+        if (subtitle != null)
+          Text(
+            subtitle!,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 12.5,
+              height: 1.4,
+              color: AppColors.muted,
+            ),
+          ),
+      ],
     );
   }
 }

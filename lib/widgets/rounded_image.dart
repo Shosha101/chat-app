@@ -3,30 +3,51 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+//Themes
+import '../themes/app_theme.dart';
+
 class RoundedImageNetwork extends StatelessWidget {
   final String imagePath;
   final double size;
+  // Drawn while the image loads, and instead of it when there is none
+  final IconData placeholderIcon;
 
-  RoundedImageNetwork({
-    required Key key,
+  const RoundedImageNetwork({
+    super.key,
     required this.imagePath,
     required this.size,
-  }) : super(key: key);
+    this.placeholderIcon = Icons.person,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: size,
-      width: size,
-      decoration: BoxDecoration(
-        image: DecorationImage(
-          fit: BoxFit.cover,
-          image: NetworkImage(imagePath),
+    return ClipOval(
+      child: SizedBox(
+        height: size,
+        width: size,
+        child: imagePath.startsWith('http')
+            ? Image.network(
+                imagePath,
+                fit: BoxFit.cover,
+                frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                  return frame == null ? _placeholder() : child;
+                },
+                errorBuilder: (context, error, stackTrace) => _placeholder(),
+              )
+            : _placeholder(),
+      ),
+    );
+  }
+
+  Widget _placeholder() {
+    return ColoredBox(
+      color: AppColors.primarySoft,
+      child: Center(
+        child: Icon(
+          placeholderIcon,
+          size: size * 0.55,
+          color: AppColors.primaryLight,
         ),
-        borderRadius: BorderRadius.all(
-          Radius.circular(size),
-        ),
-        color: Colors.black,
       ),
     );
   }
@@ -36,24 +57,28 @@ class RoundedImageFile extends StatelessWidget {
   final PlatformFile image;
   final double size;
 
-  RoundedImageFile({
-    required Key key,
+  const RoundedImageFile({
+    super.key,
     required this.image,
     required this.size,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        image: DecorationImage(
+    return ClipOval(
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: Image.file(
+          File(image.path!),
           fit: BoxFit.cover,
-          image: FileImage(File(image.path!)),
+          errorBuilder: (context, error, stackTrace) {
+            return const ColoredBox(
+              color: AppColors.primarySoft,
+              child: Icon(Icons.broken_image_outlined, color: AppColors.muted),
+            );
+          },
         ),
-        borderRadius: BorderRadius.all(Radius.circular(size)),
-        color: Colors.black,
       ),
     );
   }
@@ -62,26 +87,29 @@ class RoundedImageFile extends StatelessWidget {
 class RoundedImageNetworkWithStatusIndicator extends RoundedImageNetwork {
   final bool isActive;
 
-  RoundedImageNetworkWithStatusIndicator({
-    required Key key,
-    required String imagePath,
-    required double size,
+  const RoundedImageNetworkWithStatusIndicator({
+    super.key,
+    required super.imagePath,
+    required super.size,
+    super.placeholderIcon,
     required this.isActive,
-  }) : super(key: key, imagePath: imagePath, size: size);
+  });
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       clipBehavior: Clip.none,
-      alignment: Alignment.bottomRight,
+      alignment: AlignmentDirectional.bottomEnd,
       children: [
         super.build(context),
         Container(
-          height: size * 0.20,
-          width: size * 0.20,
+          height: size * 0.28,
+          width: size * 0.28,
           decoration: BoxDecoration(
-            color: isActive ? Colors.green : Colors.red,
-            borderRadius: BorderRadius.circular(size),
+            color: isActive ? AppColors.online : AppColors.offline,
+            shape: BoxShape.circle,
+            // A ring in the page colour separates the dot from the photo
+            border: Border.all(color: AppColors.background, width: 2),
           ),
         ),
       ],

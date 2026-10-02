@@ -43,6 +43,7 @@ dependencies:
   flutter_keyboard_visibility: ^6.0.0
   flutter_dotenv: ^5.2.1
   timeago: ^3.7.0
+  easy_localization: ^3.0.8
 
 
 
@@ -79,4 +80,16 @@ flutter:
   assets:
     - .env
     - assets/images/
+    - assets/translations/
+
+  fonts:
+    - family: IBMPlexSansArabic
+      fonts:
+        - asset: assets/fonts/IBMPlexSansArabic-Regular.ttf
+        - asset: assets/fonts/IBMPlexSansArabic-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/IBMPlexSansArabic-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/IBMPlexSansArabic-Bold.ttf
+          weight: 700
 

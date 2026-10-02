@@ -4,8 +4,9 @@ class NavigationService {
   static GlobalKey<NavigatorState> navigatorKey =
   new GlobalKey<NavigatorState>();
 
+  // Clears the stack, so Back cannot return to a signed-out or signed-in page
   void removeAndNavigateToRoute(String _route) {
-    navigatorKey.currentState?.popAndPushNamed(_route);
+    navigatorKey.currentState?.pushNamedAndRemoveUntil(_route, (_) => false);
   }
 
   void navigateToRoute(String _route) {
@@ -23,7 +24,14 @@ class NavigationService {
   }
 
   String? getCurrentRoute() {
-    return ModalRoute.of(navigatorKey.currentState!.context)?.settings.name!;
+    // The navigator sits above its routes, so the top route is read by
+    // visiting it without popping anything
+    String? name;
+    navigatorKey.currentState?.popUntil((route) {
+      name = route.settings.name;
+      return true;
+    });
+    return name;
   }
 
   void goBack() {

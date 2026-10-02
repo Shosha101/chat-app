@@ -26,6 +26,8 @@ class DatabaseService {
       );
     } catch (e) {
       print(e);
+      // Registration must not carry on without the profile document
+      rethrow;
     }
   }
 
@@ -35,10 +37,12 @@ class DatabaseService {
 
   Future<QuerySnapshot> getUsers({String? name}) {
     Query _query = _db.collection(USER_COLLECTION);
-    if (name != null) {
+    if (name != null && name.isNotEmpty) {
+      // The last code point Firestore sorts: closes the prefix range for any
+      // alphabet, where "z" only covered Latin names
       _query = _query
           .where("name", isGreaterThanOrEqualTo: name)
-          .where("name", isLessThanOrEqualTo: name + "z");
+          .where("name", isLessThanOrEqualTo: name + String.fromCharCode(0xf8ff));
     }
     return _query.get();
   }
@@ -120,5 +124,6 @@ class DatabaseService {
     } catch (e) {
       print(e);
     }
+    return null;
   }
 }

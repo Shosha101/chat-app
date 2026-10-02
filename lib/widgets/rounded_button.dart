@@ -5,31 +5,38 @@ class RoundedButton extends StatelessWidget {
   final double height;
   final double width;
   final Function onPressed;
+  // Shows a spinner in place of the label and ignores taps
+  final bool isLoading;
 
   const RoundedButton(
-      {required this.height,
+      {super.key,
+      required this.height,
       required this.name,
       required this.width,
-      required this.onPressed});
+      required this.onPressed,
+      this.isLoading = false});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color.fromRGBO(0, 94, 218, 1.0),
-          borderRadius: BorderRadius.circular(height*0.25)
-      ),
+    return SizedBox(
       height: height,
       width: width,
-      child: TextButton(
-
-
-          onPressed: ()=>onPressed(),
-          child: Text(
-            name,
-            style: TextStyle(fontSize: 22, height: 1.5,color: Colors.white),
-
-          )),
+      child: FilledButton(
+          onPressed: isLoading ? null : () => onPressed(),
+          child: isLoading
+              ? const SizedBox(
+                  height: 22,
+                  width: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: Colors.white,
+                  ),
+                )
+              : Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                )),
     );
   }
 }

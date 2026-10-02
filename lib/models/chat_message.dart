@@ -31,10 +31,12 @@ class ChatMessage {
         _messageType = MessageType.UNKNOWN;
     }
     return ChatMessage(
-      content: _json["content"],
+      content: _json["content"] ?? "",
       type: _messageType,
-      senderID: _json["sender_id"],
-      sentTime: _json["sent_time"].toDate(),
+      senderID: _json["sender_id"] ?? "",
+      sentTime: _json["sent_time"] != null
+          ? (_json["sent_time"] as Timestamp).toDate()
+          : DateTime.now(),
     );
   }
 

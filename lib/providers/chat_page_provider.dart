@@ -30,10 +30,17 @@ class ChatPageProvider extends ChangeNotifier {
 
   String _chatId;
   List<ChatMessage>? messages;
+  bool hasError = false;
+  // True while a picked image is being uploaded and sent
+  bool isSendingImage = false;
 
-  late StreamSubscription _messagesStream;
-  late StreamSubscription _keyboardVisibilityStream;
+  StreamSubscription? _messagesStream;
+  StreamSubscription? _keyboardVisibilityStream;
   late KeyboardVisibilityController _keyboardVisibilityController;
+
+  bool _disposed = false;
+  bool _isKeyboardVisible = false;
+  bool _isChatDeleted = false;
 
   String? _message;
 
@@ -58,23 +65,39 @@ class ChatPageProvider extends ChangeNotifier {
 
   @override
   void dispose() {
-    _messagesStream.cancel();
+    _disposed = true;
+    _messagesStream?.cancel();
+    _keyboardVisibilityStream?.cancel();
+    // Leaving with the keyboard open would keep the chat marked as active
+    if (_isKeyboardVisible && !_isChatDeleted) {
+      _db.updateChatData(_chatId, {"is_activity": false});
+    }
     super.dispose();
   }
 
   void listenToMessages() {
+    messages = null;
+    hasError = false;
+    notifyListeners();
+    _messagesStream?.cancel();
     try {
       _messagesStream = _db.streamMessagesForChat(_chatId).listen(
             (_snapshot) {
-          List<ChatMessage> _messages = _snapshot.docs.map(
-                (_m) {
-              Map<String, dynamic> _messageData =
-              _m.data() as Map<String, dynamic>;
+          try {
+            List<ChatMessage> _messages = _snapshot.docs.map(
+                  (_m) {
+                Map<String, dynamic> _messageData =
+                _m.data() as Map<String, dynamic>;
 
-              return ChatMessage.fromJSON(_messageData);
-            },
-          ).toList();
-          messages = _messages;
+                return ChatMessage.fromJSON(_messageData);
+              },
+            ).toList();
+            messages = _messages;
+            hasError = false;
+          } catch (e) {
+            debugPrint("Error reading messages: $e");
+            hasError = true;
+          }
           notifyListeners();
           WidgetsBinding.instance.addPostFrameCallback(
                 (_) {
@@ -85,23 +108,31 @@ class ChatPageProvider extends ChangeNotifier {
             },
           );
         },
+        onError: (e) {
+          debugPrint("Error getting messages: $e");
+          hasError = true;
+          notifyListeners();
+        },
       );
     } catch (e) {
       print("Error getting messages.");
       print(e);
+      hasError = true;
+      notifyListeners();
     }
   }
 
   void listenToKeyboardChanges() {
     _keyboardVisibilityStream = _keyboardVisibilityController.onChange.listen(
           (_event) {
+        _isKeyboardVisible = _event;
         _db.updateChatData(_chatId, {"is_activity": _event});
       },
     );
   }
 
   void sendTextMessage() {
-    if (_message != null) {
+    if (_message != null && _message!.trim().isNotEmpty) {
       ChatMessage _messageToSend = ChatMessage(
         content: _message!,
         type: MessageType.TEXT,
@@ -112,14 +143,17 @@ class ChatPageProvider extends ChangeNotifier {
     }
   }
 
-  void sendImageMessage() async {
+  // Returns false when the picked image could not be uploaded
+  Future<bool> sendImageMessage() async {
+    bool isSent = true;
     try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.image, // Ensure only images are picked
-      );
+      PlatformFile? picked = await _media.pickImageFromLibrary();
 
-      if (result != null && result.files.single.path != null) {
-        File file = File(result.files.single.path!); // Convert PlatformFile to File
+      if (picked != null && picked.path != null) {
+        File file = File(picked.path!); // Convert PlatformFile to File
+
+        isSendingImage = true;
+        notifyListeners();
 
         String? _downloadURL = await _storage.saveChatImageToStorage(file, _chatId, _auth.user.uid);
 
@@ -131,14 +165,23 @@ class ChatPageProvider extends ChangeNotifier {
             sentTime: DateTime.now(),
           );
           _db.addMessageToChat(_chatId, _messageToSend);
+        } else {
+          isSent = false;
         }
       }
     } catch (e) {
       print("Error sending image message: $e");
+      isSent = false;
     }
+    isSendingImage = false;
+    if (!_disposed) {
+      notifyListeners();
+    }
+    return isSent;
   }
 
   void deleteChat() {
+    _isChatDeleted = true;
     goBack();
     _db.deleteChat(_chatId);
   }

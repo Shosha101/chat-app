@@ -24,7 +24,14 @@ class UsersPageProvider extends ChangeNotifier {
   late NavigationService _navigation;
 
   List<ChatUser>? users;
+  bool hasError = false;
+  // True from the tap on the create button until the chat page opens
+  bool isCreatingChat = false;
   late List<ChatUser> _selectedUsers;
+
+  bool _disposed = false;
+  // Number of the latest search: a slower, older one must not replace its result
+  int _latestSearch = 0;
 
   List<ChatUser> get selectedUsers {
     return _selectedUsers;
@@ -39,14 +46,22 @@ class UsersPageProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     super.dispose();
   }
 
   void getUsers({String? name}) async {
+    final int searchNumber = ++_latestSearch;
     _selectedUsers = [];
+    users = null;
+    hasError = false;
+    notifyListeners();
     try {
-      _database.getUsers(name: name).then(
+      _database.getUsers(name: name?.trim()).then(
             (_snapshot) {
+          if (_disposed || searchNumber != _latestSearch) {
+            return;
+          }
           users = _snapshot.docs.map(
                 (_doc) {
               Map<String, dynamic> _data = _doc.data() as Map<String, dynamic>;
@@ -54,9 +69,18 @@ class UsersPageProvider extends ChangeNotifier {
               return ChatUser.fromJSON(_data);
             },
           ).toList();
+          // The list is for picking someone else to chat with
+          users!.removeWhere((user) => user.uid == _auth.user.uid);
           notifyListeners();
         },
-      );
+      ).catchError((e) {
+        debugPrint("Error getting users: $e");
+        if (_disposed || searchNumber != _latestSearch) {
+          return;
+        }
+        hasError = true;
+        notifyListeners();
+      });
     } catch (e) {
       print("Error getting users.");
       print(e);
@@ -72,7 +96,14 @@ class UsersPageProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void createChat() async {
+  // Returns false when the chat could not be created
+  Future<bool> createChat() async {
+    if (isCreatingChat || _selectedUsers.isEmpty) {
+      return true;
+    }
+    isCreatingChat = true;
+    notifyListeners();
+    bool isCreated = true;
     try {
       //Create Chat
       List<String> _membersIds =
@@ -109,11 +140,16 @@ class UsersPageProvider extends ChangeNotifier {
             group: _isGroup),
       );
       _selectedUsers = [];
-      notifyListeners();
       _navigation.navigateToPage(_chatPage);
     } catch (e) {
       print("Error creating chat.");
       print(e);
+      isCreated = false;
     }
+    isCreatingChat = false;
+    if (!_disposed) {
+      notifyListeners();
+    }
+    return isCreated;
   }
 }

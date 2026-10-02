@@ -1,4 +1,5 @@
 //Packages
+import 'package:easy_localization/easy_localization.dart' hide TextDirection;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:get_it/get_it.dart';
@@ -14,6 +15,7 @@ import '../services/navigation_services.dart';
 import '../pages/chat_page.dart';
 
 //Widgets
+import '../widgets/app_widgets.dart';
 import '../widgets/top_bar.dart';
 import '../widgets/custom_list_view_tiles.dart';
 
@@ -23,6 +25,11 @@ import '../models/chat_user.dart';
 import '../models/chat_message.dart';
 
 class ChatsPage extends StatefulWidget {
+  // Called by the button of the empty state, to open the Users tab
+  final VoidCallback? onFindUsers;
+
+  const ChatsPage({super.key, this.onFindUsers});
+
   @override
   State<StatefulWidget> createState() {
     return _ChatsPageState();
@@ -30,17 +37,12 @@ class ChatsPage extends StatefulWidget {
 }
 
 class _ChatsPageState extends State<ChatsPage> {
-  late double _deviceHeight;
-  late double _deviceWidth;
-
   late AuthenticationProvider _auth;
   late NavigationService _navigation;
   late ChatsPageProvider _pageProvider;
 
   @override
   Widget build(BuildContext context) {
-    _deviceHeight = MediaQuery.of(context).size.height;
-    _deviceWidth = MediaQuery.of(context).size.width;
     _auth = Provider.of<AuthenticationProvider>(context);
     _navigation = GetIt.instance.get<NavigationService>();
     return MultiProvider(
@@ -55,34 +57,27 @@ class _ChatsPageState extends State<ChatsPage> {
 
   Widget _buildUI() {
     return Builder(
-      builder: (BuildContext _context) {
-        _pageProvider = _context.watch<ChatsPageProvider>();
-        return Container(
-          padding: EdgeInsets.symmetric(
-            horizontal: _deviceWidth * 0.03,
-            vertical: _deviceHeight * 0.02,
-          ),
-          height: _deviceHeight * 0.98,
-          width: _deviceWidth * 0.97,
-          child: Column(
-            mainAxisSize: MainAxisSize.max,
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              TopBar(
-                'Chats',
-                primaryAction: IconButton(
-                  icon: Icon(
-                    Icons.logout,
-                    color: Color.fromRGBO(0, 82, 218, 1.0),
+      builder: (BuildContext context) {
+        _pageProvider = context.watch<ChatsPageProvider>();
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.max,
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(start: 10, top: 8),
+                  child: TopBar(
+                    context.tr('chats'),
+                    primaryAction: const AccountActions(),
                   ),
-                  onPressed: () {
-                    _auth.logout();
-                  },
                 ),
-              ),
-              _chatsList(),
-            ],
+                const SizedBox(height: 4),
+                _chatsList(),
+              ],
+            ),
           ),
         );
       },
@@ -90,57 +85,76 @@ class _ChatsPageState extends State<ChatsPage> {
   }
 
   Widget _chatsList() {
-    List<Chat>? _chats = _pageProvider.chats;
+    List<Chat>? chats = _pageProvider.chats;
     return Expanded(
       child: (() {
-        if (_chats != null) {
-          if (_chats.length != 0) {
+        if (chats != null) {
+          if (chats.isNotEmpty) {
             return ListView.builder(
-              itemCount: _chats.length,
-              itemBuilder: (BuildContext _context, int _index) {
+              padding: const EdgeInsets.only(bottom: 12),
+              itemCount: chats.length,
+              itemBuilder: (BuildContext context, int index) {
                 return _chatTile(
-                  _chats[_index],
+                  chats[index],
                 );
               },
             );
           } else {
-            return Center(
-              child: Text(
-                "No Chats Found.",
-                style: TextStyle(color: Colors.white),
-              ),
+            return StateMessage(
+              icon: Icons.forum_outlined,
+              title: context.tr('chats_empty_title'),
+              body: context.tr('chats_empty_body'),
+              actionLabel: context.tr('find_users'),
+              onAction: widget.onFindUsers,
             );
           }
-        } else {
-          return Center(
-            child: CircularProgressIndicator(
-              color: Colors.white,
-            ),
+        } else if (_pageProvider.hasError) {
+          return StateMessage(
+            icon: Icons.cloud_off_outlined,
+            title: context.tr('chats_error'),
+            actionLabel: context.tr('retry'),
+            onAction: () => _pageProvider.getChats(),
           );
+        } else {
+          return const LoadingView();
         }
       })(),
     );
   }
 
-  Widget _chatTile(Chat _chat) {
-    List<ChatUser> _recepients = _chat.recepients();
-    bool _isActive = _recepients.any((_d) => _d.wasRecentlyActive());
-    String _subtitleText = "";
-    if (_chat.messages.isNotEmpty) {
-      _subtitleText = _chat.messages.first.type != MessageType.TEXT
-          ? "Media Attachment"
-          : _chat.messages.first.content;
+  Widget _chatTile(Chat chat) {
+    List<ChatUser> recepients = chat.recepients();
+    bool isActive = recepients.any((user) => user.wasRecentlyActive());
+    String subtitleText = "";
+    IconData? subtitleIcon;
+    String? time;
+    if (chat.messages.isNotEmpty) {
+      ChatMessage lastMessage = chat.messages.first;
+      time = timeAgo(context, lastMessage.sentTime);
+      switch (lastMessage.type) {
+        case MessageType.TEXT:
+          subtitleText = lastMessage.content;
+          break;
+        case MessageType.IMAGE:
+          subtitleText = context.tr('media_attachment');
+          subtitleIcon = Icons.photo_outlined;
+          break;
+        default:
+          subtitleText = context.tr('unsupported_message');
+      }
     }
     return CustomListViewTileWithActivity(
-      height: _deviceHeight * 0.10,
-      title: _chat.title(),
-      subtitle: _subtitleText,
-      imagePath: _chat.imageURL(),
-      isActive: _isActive,
-      isActivity: _chat.activity,
+      title: chatTitle(context, chat),
+      subtitle: subtitleText,
+      subtitleIcon: subtitleIcon,
+      time: time,
+      imagePath: chat.imageURL(),
+      isActive: isActive,
+      isActivity: chat.activity,
+      isGroup: chat.group,
       onTap: () {
         _navigation.navigateToPage(
-          ChatPage(chat: _chat),
+          ChatPage(chat: chat),
         );
       },
     );
